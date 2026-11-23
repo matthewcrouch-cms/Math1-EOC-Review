@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EOC Review · Teacher View</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  body{font-size:15px}
+  main{max-width:1240px}
+  nav{display:flex;gap:4px;flex-wrap:wrap}
+  nav button{background:transparent;border:none;color:#fff;padding:7px 11px;border-radius:8px;font-weight:700;opacity:.88}
+  nav button.on{background:#fff;color:var(--blue-dk);opacity:1}
+  .hbtn{background:var(--orange);color:#fff;border:none;border-radius:8px;padding:7px 12px;font-weight:700}
+  h1{font-size:1.35rem} h2{font-size:1.1rem;margin:0 0 10px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+  .btn{background:var(--blue-dk);color:#fff;border:none;border-radius:9px;padding:8px 16px;font-weight:700}
+  .btn.alt{background:#fff;color:var(--blue-dk);border:1.5px solid var(--blue)}
+  .btn.warn{background:#fff;color:var(--bad);border:1.5px solid #E7A3A3}
+  .btn.sm{padding:4px 10px;font-size:.85rem}
+  .btn:disabled{opacity:.5;cursor:default}
+  input[type=password],input[type=text],input[type=email],input[type=number],input[type=date],input[type=datetime-local],select,textarea{border:1.5px solid #AFC2D1;border-radius:8px;padding:7px 10px;background:#fff}
+  input[type=number]{width:80px}
+  .login{max-width:380px;margin:60px auto;text-align:center}
+  .login input{width:100%;margin:8px 0}
+  .scroll{overflow-x:auto}
+  table.t{border-collapse:collapse;width:100%;background:#fff}
+  table.t th,table.t td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:middle}
+  table.t th{background:#F0F5F9;font-size:.8rem;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);position:sticky;top:0}
+  table.t td.c,table.t th.c{text-align:center}
+  .cell{border:1px solid transparent;border-radius:8px;padding:5px 8px;min-width:74px;background:none;text-align:center;width:100%}
+  .cell:hover{border-color:var(--blue);background:var(--blue-lt)}
+  .cell b{display:block;font-size:1.02rem} .cell small{color:var(--muted);font-size:.75rem}
+  .s-hi b{color:var(--good)} .s-mid b{color:#B36B00} .s-lo b{color:var(--bad)} .s-none b{color:#A9B6C2}
+  .tag{display:inline-block;font-size:.72rem;font-weight:700;padding:1px 7px;border-radius:99px;background:var(--orange-lt);color:#B34A00;margin-left:4px}
+  .tag.ext{background:#F1ECFA;color:#5B3A99} .tag.off{background:#EEF1F4;color:var(--muted)}
+  .pin{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:700;letter-spacing:2px;font-size:1.05rem}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .mutedtxt{color:var(--muted);font-size:.88rem}
+  .meter{height:8px;background:var(--line);border-radius:9px;overflow:hidden;min-width:90px}
+  .meter i{display:block;height:100%}
+  .overlay{position:fixed;inset:0;background:rgba(15,30,45,.45);display:flex;justify-content:center;align-items:flex-start;padding:40px 16px;z-index:20;overflow-y:auto}
+  .modal{background:#fff;border-radius:16px;max-width:820px;width:100%;padding:20px 22px;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+  .modal h2{display:flex;justify-content:space-between;gap:10px}
+  .x{background:none;border:none;font-size:1.4rem;line-height:1;color:var(--muted)}
+  .good{color:var(--good);font-weight:700} .bad{color:var(--bad);font-weight:700}
+  textarea{width:100%;min-height:140px}
+  .slips{display:none}
+  .keyans{margin:10px 0 0;background:var(--good-lt);border-radius:10px;padding:10px 14px;color:#145C29}
+  .keyhint{margin:6px 0 0;background:#F4F9FD;border-left:4px solid var(--blue);border-radius:6px;padding:7px 12px;font-size:.93rem}
+  .prob.off{opacity:.55}
+  .switch{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:.9rem;cursor:pointer;user-select:none}
+  .switch input{width:40px;height:22px;appearance:none;background:#C9D4DD;border-radius:99px;position:relative;cursor:pointer;transition:.15s}
+  .switch input:checked{background:var(--good)}
+  .switch input::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:.15s}
+  .switch input:checked::after{left:21px}
+  .grid2{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+  .grid2 label{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.9rem}
+  .grid2 label small{font-weight:500;color:var(--muted)}
+  @media print{
+    body *{visibility:hidden} .slips,.slips *{visibility:visible}
+    .slips{display:grid!important;position:absolute;left:0;top:0;width:100%;grid-template-columns:1fr 1fr;gap:0}
+    .slip{border:1px dashed #999;padding:14px 16px;break-inside:avoid;font-size:14px}
+    .slip b{font-size:16px} .slip .pin{font-size:22px}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">BR: Math 1 <small>EOC Review · Teacher</small></div>
+  <nav id="nav"></nav>
+</header>
+<main id="app"></main>
+<div class="slips" id="slips"></div>
+
+<script src="js/config.js"></script>
+<script src="js/common.js"></script>
+<script src="js/review-data.js"></script>
+<script>
+const { esc, r1, fmtDT, rpc } = EOC;
+const app = document.getElementById("app"), nav = document.getElementById("nav");
+const ss = { get(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
+             set(k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} },
+             del(k) { try { sessionStorage.removeItem(k); } catch (e) {} } };
+const S = { tok: ss.get("eoc_ttok"), data: null, tab: "grades", cls: ss.get("eoc_tcls") || "all", insightA: null, bank: null, keySet: "all" };
+
+// ---------------- LOGIN ----------------
+function showLogin(msg) {
+  nav.innerHTML = "";
+  app.innerHTML = `<div class="card login"><h1>Teacher login</h1>
+    <input type="email" id="em" placeholder="School email" autocomplete="username" autofocus>
+    <input type="password" id="pw" placeholder="Password" autocomplete="current-password">
+    <button class="btn" id="go" style="width:100%;margin-top:6px">Log in</button>
+    <div id="lerr">${msg ? `<div class="err">${esc(msg)}</div>` : ""}</div>
+    <p class="mutedtxt" style="margin-top:14px">No account yet? Ask the platform admin to add you.</p></div>`;
+  const go = async () => {
+    try { const r = await rpc("t_login", { p_email: document.getElementById("em").value, p_password: document.getElementById("pw").value });
+          S.tok = r.token; ss.set("eoc_ttok", r.token); refresh(); }
+    catch (e) { document.getElementById("lerr").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+  };
+  document.getElementById("go").onclick = go;
+  document.getElementById("pw").onkeydown = e => { if (e.key === "Enter") go(); };
+}
+async function refresh() {
+  try { S.data = await rpc("t_data", { p_token: S.tok }); }
+  catch (e) { ss.del("eoc_ttok"); return showLogin(e.expired ? "Please log in again." : e.message); }
+  render();
+}
+async function call(fn, args, okMsg) {
+  try { const r = await rpc(fn, { p_token: S.tok, ...args }); if (okMsg) toast(okMsg, true); return r; }
+  catch (e) { if (e.expired) { ss.del("eoc_ttok"); showLogin("Please log in again."); } else toast(e.message); throw e; }
+}
+function toast(msg, good) {
+  const d = document.createElement("div"); d.className = good ? "ok" : "err"; d.textContent = msg;
+  d.style.cssText = "position:fixed;left:50%;transform:translateX(-50%);top:14px;z-index:99;box-shadow:0 6px 20px rgba(0,0,0,.15)";
+  document.body.appendChild(d); setTimeout(() => d.remove(), 4000);
+}
+
+// ---------------- DATA HELPERS ----------------
+const D = () => S.data;
+function stateMap() { const m = {}; for (const s of D().states) m[s.s + "|" + s.p] = s; return m; }
+const extFor = (sid, aid) => D().extensions.find(e => e.s === sid && e.a === aid);
+const className = id => (D().classes.find(c => c.id === id) || {}).name || "—";
+const setTitle = id => (D().sets.find(s => s.id === id) || {}).title || "";
+function summary(student, a, sm) {
+  let score = 0, late = 0, started = 0; const probs = {};
+  for (const p of a.parts) {
+    const st = sm[student.id + "|" + p.id];
+    probs[p.problem] = (probs[p.problem] ?? true) && !!(st && st.done);
+    if (st) { started++; score += p.points * st.pct / 100; if (st.late) late = Math.max(late, st.late); }
+  }
+  const vals = Object.values(probs);
+  return { score: r1(score), done: vals.filter(Boolean).length, total: vals.length, late, started };
+}
+const students = (all) => D().students.filter(s => (all || s.active) && (S.cls === "all" || s.class_id === +S.cls));
+function classPicker(id = "cf", withAll = true) {
+  return `<select id="${id}">${withAll ? `<option value="all">All classes</option>` : ""}${D().classes.filter(c => c.active).map(c => `<option value="${c.id}" ${String(S.cls) === String(c.id) ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select>`;
+}
+function wireClassPicker(rerender) {
+  const el = document.getElementById("cf");
+  if (el) el.onchange = () => { S.cls = el.value; ss.set("eoc_tcls", S.cls); rerender(); };
+}
+const qLabel = p => `${setTitle(p.set)} #${p.n}${p.label || ""}`;
+
+// ---------------- LAYOUT ----------------
+function render() {
+  const tabs = [["grades", "Gradebook"], ["insights", "Insights"], ["roster", "Classes & PINs"], ["schedule", "Due dates"], ["export", "Export to Canvas"], ["key", "Answer key"]];
+  if (D().me.is_admin) tabs.push(["admin", "Admin"]);
+  tabs.push(["account", "👤 " + D().me.name.split(" ")[0]]);
+  nav.innerHTML = tabs.map(([k, l]) => `<button class="${S.tab === k ? "on" : ""}" data-t="${k}">${esc(l)}</button>`).join("") + `<button class="hbtn" id="preview">👁 Preview as student</button>`;
+  nav.querySelectorAll("[data-t]").forEach(b => b.onclick = () => { S.tab = b.dataset.t; render(); });
+  document.getElementById("preview").onclick = preview;
+  ({ grades: renderGrades, insights: renderInsights, roster: renderRoster, schedule: renderSchedule, export: renderExport,
+     key: renderKey, admin: renderAdmin, account: renderAccount })[S.tab]();
+}
+async function preview() {
+  const r = await call("t_preview", { p_reset: false });
+  try { localStorage.setItem("eoc_token", r.token); } catch (e) {}
+  window.open("index.html", "_blank");
+}
+
+// ---------------- GRADEBOOK ----------------
+function renderGrades() {
+  const as = D().assignments, st = students(), sm = stateMap();
+  if (!D().classes.length) { app.innerHTML = `<div class="card"><h2>Welcome, ${esc(D().me.name)}!</h2><p>Start on the <b>Classes & PINs</b> tab: add your classes (like “Block 2”), then paste in your rosters. Then check the <b>Due dates</b> tab.</p></div>`; return; }
+  app.innerHTML = `
+    <div class="row" style="justify-content:space-between"><div><h1>Gradebook</h1>
+      <p class="sub">Scores are out of 100 and update live. Click a score for question-by-question detail, an extension, or to reset work.</p></div>
+      <div class="row">${classPicker()}<button class="btn alt" id="rf">↻ Refresh</button></div></div>
+    ${st.length ? `<div class="card scroll" style="padding:0"><table class="t">
+      <tr><th>Student</th>${S.cls === "all" ? "<th>Class</th>" : ""}${as.map(a => `<th class="c" title="${esc(a.title)}">${esc(a.title)}<br><span style="text-transform:none;font-weight:500">due ${fmtDT(a.due)}</span></th>`).join("")}<th class="c">Average</th></tr>
+      ${st.map(s => { let tot = 0, n = 0; const cells = as.map(a => {
+          const x = summary(s, a, sm), ext = extFor(s.id, a.id);
+          if (a.due && new Date(a.due) < new Date()) { tot += x.score; n++; }
+          const cls = !x.started ? "s-none" : x.score >= 80 ? "s-hi" : x.score >= 60 ? "s-mid" : "s-lo";
+          return `<td class="c"><button class="cell ${cls}" data-s="${s.id}" data-a="${a.id}"><b>${x.started ? x.score : "—"}</b><small>${x.done}/${x.total} done</small>
+            ${x.late ? `<span class="tag">late</span>` : ""}${ext ? `<span class="tag ext">ext</span>` : ""}</button></td>`; }).join("");
+        return `<tr><td><b>${esc(s.last)}</b>, ${esc(s.first)}</td>${S.cls === "all" ? `<td class="mutedtxt">${esc(className(s.class_id))}</td>` : ""}${cells}
+          <td class="c" title="Average of nights already due"><b>${n ? r1(tot / n) : "—"}</b></td></tr>`; }).join("")}
+    </table></div>` : `<div class="card">No students in this class yet. Add them on the <b>Classes & PINs</b> tab.</div>`}`;
+  document.getElementById("rf").onclick = refresh;
+  wireClassPicker(renderGrades);
+  app.querySelectorAll(".cell").forEach(b => b.onclick = () => detail(+b.dataset.s, b.dataset.a));
+}
+const toLocalInput = iso => { if (!iso) return ""; const d = new Date(iso), p = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
+
+function detail(sid, aid) {
+  const s = D().students.find(x => x.id === sid), a = D().assignments.find(x => x.id === aid), sm = stateMap();
+  const ext = extFor(sid, aid), x = summary(s, a, sm);
+  const ov = document.createElement("div"); ov.className = "overlay";
+  ov.innerHTML = `<div class="modal">
+    <h2><span>${esc(s.first)} ${esc(s.last)} · ${esc(a.title)}</span><button class="x" id="cl">×</button></h2>
+    <p class="sub">Score: <b>${x.score}</b> / 100 · ${x.done} of ${x.total} questions finished</p>
+    <div class="scroll"><table class="t"><tr><th>Question</th><th>Topic</th><th>Result</th><th class="c">Wrong tries</th><th class="c">Hint</th><th class="c">Late days</th><th class="c">Points</th><th>Finished</th></tr>
+    ${a.parts.map(p => { const st = sm[sid + "|" + p.id];
+      const res = !st ? `<span class="mutedtxt">not started</span>` : st.done ? (st.correct ? `<span class="good">✓ correct</span>` : `<span class="bad">✗ out of tries</span>`) : `<span class="mutedtxt">in progress</span>`;
+      return `<tr><td>${esc(qLabel(p))}</td><td class="mutedtxt">${esc(EOC.topicName(p.topic))}</td><td>${res}</td><td class="c">${st ? st.wrong : ""}</td>
+        <td class="c">${st && st.hint ? "Hint " + st.hint : ""}</td><td class="c">${st && st.late ? st.late : ""}</td>
+        <td class="c">${st ? r1(p.points * st.pct / 100) : 0} / ${r1(p.points)}</td><td class="mutedtxt">${st && st.at ? fmtDT(st.at) : ""}</td></tr>`; }).join("")}
+    </table></div>
+    <div class="card" style="margin-top:16px;background:#FAFCFE">
+      <h2>Extension</h2>
+      <p class="mutedtxt" style="margin-top:-6px">Your due date: ${fmtDT(a.due)} · closes ${fmtDT(a.closes)}. An extension moves both for this student only, and late penalties are recalculated.</p>
+      <div class="row"><label>New due <input type="datetime-local" id="ed" value="${toLocalInput(ext ? ext.due : a.due)}"></label>
+        <label>Closes <input type="datetime-local" id="ec" value="${toLocalInput(ext ? ext.closes : a.closes)}"></label>
+        <button class="btn" id="es">Save extension</button>${ext ? `<button class="btn alt" id="er">Remove extension</button>` : ""}</div>
+    </div>
+    <div class="row" style="justify-content:space-between"><span class="mutedtxt">Reset clears this student's answers, hints, and score on this night so they can start over.</span>
+      <span id="rs"><button class="btn warn" id="rw">Reset work…</button></span></div>
+  </div>`;
+  document.body.appendChild(ov);
+  const close = () => ov.remove();
+  ov.querySelector("#cl").onclick = close; ov.onclick = e => { if (e.target === ov) close(); };
+  ov.querySelector("#es").onclick = async () => {
+    const d = ov.querySelector("#ed").value, c = ov.querySelector("#ec").value; if (!d) return toast("Pick a due date.");
+    await call("t_extension", { p_student: sid, p_assignment: aid, p_due: new Date(d).toISOString(), p_closes: new Date(c || d).toISOString() }, "Extension saved.");
+    close(); refresh();
+  };
+  const er = ov.querySelector("#er");
+  if (er) er.onclick = async () => { await call("t_extension", { p_student: sid, p_assignment: aid, p_due: null, p_closes: null }, "Extension removed."); close(); refresh(); };
+  ov.querySelector("#rw").onclick = () => {
+    ov.querySelector("#rs").innerHTML = `<b class="bad">Erase all of ${esc(s.first)}'s work on ${esc(a.title)}?</b> <button class="btn warn" id="ry">Yes, reset</button> <button class="btn alt" id="rn">Cancel</button>`;
+    ov.querySelector("#rn").onclick = () => { close(); detail(sid, aid); };
+    ov.querySelector("#ry").onclick = async () => { await call("t_reset_work", { p_student: sid, p_assignment: aid }, "Work reset."); close(); refresh(); };
+  };
+}
+
+// ---------------- INSIGHTS ----------------
+function renderInsights() {
+  const as = D().assignments; if (!as.length) { app.innerHTML = `<div class="card">No assignments yet.</div>`; return; }
+  if (!S.insightA || !as.find(a => a.id === S.insightA)) S.insightA = as[0].id;
+  const a = as.find(x => x.id === S.insightA), ids = new Set(students().map(s => s.id));
+  const rows = a.parts.map(p => {
+    const sts = D().states.filter(s => s.p === p.id && ids.has(s.s));
+    const done = sts.filter(s => s.done), correct = done.filter(s => s.correct);
+    const first = correct.filter(s => s.wrong === 0 && s.hint === 0).length, hinted = sts.filter(s => s.hint > 0);
+    const avgWrong = sts.length ? sts.reduce((t, s) => t + s.wrong, 0) / sts.length : 0, out = done.length - correct.length;
+    const struggle = sts.length ? (hinted.length + sts.filter(s => s.wrong >= 2).length + out * 2) / sts.length : 0;
+    return { p, n: sts.length, first, hinted: hinted.length, t: [1, 2, 3].map(k => sts.filter(s => s.hint === k).length), avgWrong, out, struggle };
+  });
+  const maxS = Math.max(0.0001, ...rows.map(r => r.struggle));
+  // topic mastery across every night
+  const topics = {};
+  for (const n of as) for (const p of n.parts) {
+    const t = topics[p.topic] ||= { n: 0, first: 0, pct: 0 };
+    for (const s of D().states) if (s.p === p.id && ids.has(s.s) && s.done) { t.n++; t.pct += s.pct; if (s.correct && !s.wrong && !s.hint) t.first++; }
+  }
+  const trows = Object.entries(topics).filter(([, t]) => t.n).sort((x, y) => x[1].pct / x[1].n - y[1].pct / y[1].n);
+  app.innerHTML = `
+    <div class="row" style="justify-content:space-between"><div><h1>Insights</h1><p class="sub">What needs reteaching before the EOC?</p></div>
+      <div class="row">${classPicker()}<button class="btn alt" id="rf">↻ Refresh</button></div></div>
+    <div class="card"><h2>Topic mastery (all nights)</h2>
+      ${trows.length ? `<table class="t"><tr><th>Topic</th><th class="c">Answers finished</th><th class="c">Right first try</th><th>Average score</th></tr>
+        ${trows.map(([id, t]) => { const avg = t.pct / t.n; return `<tr><td><b>${esc(EOC.topicName(id))}</b></td><td class="c">${t.n}</td><td class="c">${Math.round(100 * t.first / t.n)}%</td>
+          <td><div class="row"><div class="meter" style="flex:1"><i style="width:${avg}%;background:${avg < 60 ? "var(--bad)" : avg < 80 ? "var(--orange)" : "var(--good)"}"></i></div><b style="min-width:42px">${Math.round(avg)}%</b></div></td></tr>`; }).join("")}</table>
+        <p class="mutedtxt">Weakest topics are listed first. Based on finished questions only.</p>` : `<p class="mutedtxt">No finished work yet.</p>`}
+    </div>
+    <div class="card scroll"><div class="row" style="justify-content:space-between;margin-bottom:8px"><h2 style="margin:0">Question by question</h2>
+      <select id="as">${as.map(x => `<option value="${x.id}" ${x.id === a.id ? "selected" : ""}>${esc(x.title)}</option>`).join("")}</select></div>
+      <table class="t"><tr><th>Question</th><th>Topic</th><th class="c">Started</th><th class="c">Right first try</th><th class="c">Avg wrong tries</th><th class="c">Used a hint</th><th class="c">Deepest hint<br><span style="text-transform:none;font-weight:500">1 · 2 · 3</span></th><th class="c">Out of tries</th><th>Struggle level</th></tr>
+      ${rows.map(r => `<tr><td><b>${esc(qLabel(r.p))}</b></td><td class="mutedtxt">${esc(EOC.topicName(r.p.topic))}</td><td class="c">${r.n}</td>
+        <td class="c">${r.n ? Math.round(100 * r.first / r.n) + "%" : "—"}</td><td class="c">${r.n ? r.avgWrong.toFixed(1) : "—"}</td><td class="c">${r.hinted}</td>
+        <td class="c">${r.t.join(" · ")}</td><td class="c">${r.out ? `<span class="bad">${r.out}</span>` : 0}</td>
+        <td><div class="meter"><i style="width:${100 * r.struggle / maxS}%;background:${r.struggle / maxS > .66 ? "var(--bad)" : r.struggle / maxS > .33 ? "var(--orange)" : "var(--blue)"}"></i></div></td></tr>`).join("")}
+      </table><p class="mutedtxt">Struggle level combines hint use, repeated wrong tries, and running out of tries, relative to the other questions that night.</p></div>`;
+  document.getElementById("as").onchange = e => { S.insightA = e.target.value; renderInsights(); };
+  document.getElementById("rf").onclick = refresh;
+  wireClassPicker(renderInsights);
+}
+
+// ---------------- CLASSES & PINS ----------------
+function parseNames(text) {
+  return text.split(/\r?\n/).map(l => l.trim()).filter(l => l && !/\bname\b/i.test(l)).map(l => {
+    if (l.includes("\t")) { const [last, first] = l.split("\t"); return { last: last.trim(), first: (first || "").trim() }; }
+    if (l.includes(",")) { const [last, ...rest] = l.split(","); return { last: last.trim(), first: rest.join(",").trim() }; }
+    const parts = l.split(/\s+/); return { first: parts.slice(0, -1).join(" "), last: parts.slice(-1)[0] };
+  }).filter(n => n.first && n.last);
+}
+function renderRoster() {
+  const cls = D().classes, st = students(true);
+  app.innerHTML = `<h1>Classes & PINs</h1>
+    <p class="sub">Students log in by picking you, then their class, then their name, and typing their 4-digit PIN. Five wrong PINs lock them out for 5 minutes.</p>
+    <div class="card"><h2>Your classes</h2>
+      <div class="row" style="margin-bottom:10px">${cls.map(c => `<span class="chip ${c.active ? "open" : "closed"}" style="font-size:.9rem;padding:5px 12px">${esc(c.name)}
+        <a href="#" data-ren="${c.id}" style="margin-left:6px">rename</a> · <a href="#" data-hide="${c.id}" data-on="${c.active}">${c.active ? "hide" : "show"}</a></span>`).join("") || `<span class="mutedtxt">No classes yet.</span>`}</div>
+      <div class="row"><input type="text" id="cn" placeholder="New class name, e.g. Block 2"><button class="btn" id="ca">Add class</button></div>
+      <p class="mutedtxt">Hidden classes disappear from the student login screen.</p></div>
+    ${cls.some(c => c.active) ? `<div class="card"><h2>Add students</h2>
+      <div class="row" style="margin-bottom:8px">Add to: ${classPicker("addto", false)}</div>
+      <p class="mutedtxt" style="margin-top:0">One student per line: <b>Last, First</b>, or paste two spreadsheet columns (Last Name, then First Name). Each new student gets a random PIN. Duplicates are skipped.</p>
+      <textarea id="names" placeholder="Ruiz, Maya&#10;Ortiz, Ben"></textarea>
+      <div class="row" style="margin-top:10px"><button class="btn" id="add">Add students</button><span id="prev" class="mutedtxt"></span></div></div>` : ""}
+    <div class="card scroll"><div class="row" style="justify-content:space-between;margin-bottom:8px">
+        <h2 style="margin:0">Students (${st.filter(s => s.active).length} active)</h2>
+        <div class="row">${classPicker()}<button class="btn alt" id="print" ${st.length ? "" : "disabled"}>🖨 Print PIN slips</button></div></div>
+      <table class="t"><tr><th>Name</th><th>Class</th><th>PIN</th><th>Status</th><th></th></tr>
+      ${st.map(s => `<tr style="${s.active ? "" : "opacity:.5"}"><td><b>${esc(s.last)}</b>, ${esc(s.first)}</td>
+        <td><select data-move="${s.id}">${cls.map(c => `<option value="${c.id}" ${c.id === s.class_id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></td>
+        <td><span class="pin">${esc(s.pin)}</span></td><td>${s.active ? (s.locked ? `<span class="bad">Locked</span>` : "Active") : "Removed"}</td>
+        <td class="row" style="justify-content:flex-end">
+          <button class="btn alt sm" data-act="reset_pin" data-id="${s.id}">New PIN</button>
+          ${s.locked ? `<button class="btn alt sm" data-act="unlock" data-id="${s.id}">Unlock</button>` : ""}
+          ${s.active ? `<button class="btn warn sm" data-act="deactivate" data-id="${s.id}">Remove</button>` : `<button class="btn alt sm" data-act="activate" data-id="${s.id}">Restore</button>`}</td></tr>`).join("")}
+      </table><p class="mutedtxt">“Remove” hides a student from the login screen and gradebook but keeps their work.</p></div>`;
+  document.getElementById("ca").onclick = async () => { await call("t_class", { p_action: "add", p_class: null, p_name: document.getElementById("cn").value }, "Class added."); refresh(); };
+  app.querySelectorAll("[data-ren]").forEach(a => a.onclick = async e => { e.preventDefault();
+    const c = cls.find(x => x.id === +a.dataset.ren), n = prompt("New name for " + c.name, c.name);
+    if (n) { await call("t_class", { p_action: "rename", p_class: c.id, p_name: n }); refresh(); } });
+  app.querySelectorAll("[data-hide]").forEach(a => a.onclick = async e => { e.preventDefault();
+    await call("t_class", { p_action: a.dataset.on === "true" ? "hide" : "show", p_class: +a.dataset.hide, p_name: null }); refresh(); });
+  const ta = document.getElementById("names");
+  if (ta) {
+    ta.oninput = () => { const n = parseNames(ta.value); document.getElementById("prev").textContent = n.length ? `${n.length} student(s) found, for example: ${n[0].first} ${n[0].last}` : ""; };
+    document.getElementById("add").onclick = async () => {
+      const n = parseNames(ta.value); if (!n.length) return;
+      const r = await call("t_add_students", { p_class: +document.getElementById("addto").value, p_names: n }); toast(`Added ${r.added} student(s).`, true); refresh();
+    };
+  }
+  app.querySelectorAll("[data-move]").forEach(sel => sel.onchange = async () => { await call("t_student", { p_student: +sel.dataset.move, p_action: "move", p_class: +sel.value }, "Moved."); refresh(); });
+  app.querySelectorAll("[data-act]").forEach(b => b.onclick = async () => { await call("t_student", { p_student: +b.dataset.id, p_action: b.dataset.act, p_class: null }); refresh(); });
+  wireClassPicker(renderRoster);
+  document.getElementById("print").onclick = () => {
+    const url = location.href.replace(/teacher\.html.*$/, "");
+    document.getElementById("slips").innerHTML = students().map(s => `<div class="slip"><b>${esc(s.first)} ${esc(s.last)}</b> · ${esc(className(s.class_id))}<br>
+      EOC Review PIN: <span class="pin">${esc(s.pin)}</span><br><span style="font-size:12px">${esc(url)}<br>Teacher: ${esc(D().me.name)} · Keep this PIN private.</span></div>`).join("");
+    window.print();
+  };
+}
+
+// ---------------- DUE DATES ----------------
+function nextSchoolDay(d, off) { const x = new Date(d); do { x.setDate(x.getDate() + 1); } while (x.getDay() === 0 || x.getDay() === 6 || off.has(ymd(x))); return x; }
+const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+function scheduleEditor(rows, saveFn, note) {
+  const off = new Set(D().no_school.map(n => n.day));
+  app.querySelector("#sched").innerHTML = `
+    <div class="card" style="background:#FAFCFE"><h2>Quick fill</h2>
+      <div class="row"><label>Night 1 is assigned on <input type="date" id="qs"></label>
+        <label>Opens at <input type="time" id="qo" value="07:00"></label><label>Due next school day at <input type="time" id="qd" value="07:30"></label>
+        <label>Everything closes <input type="datetime-local" id="qc"></label><button class="btn alt" id="qf">Fill in the table</button></div>
+      <p class="mutedtxt" style="margin-bottom:0">One night per school day. Weekends and no-school days are skipped. Nothing is saved until you click Save.</p></div>
+    <table class="t"><tr><th>Night</th><th>Sets</th><th>Opens</th><th>Due</th><th>Closes</th></tr>
+      ${rows.map(a => `<tr data-a="${a.id}"><td><b>${esc(a.title)}</b></td><td class="mutedtxt">${a.set_ids.map(id => `${setTitle(id)} ${D().sets.find(s => s.id === id).calc ? "" : "(no calc)"}`).join(" + ")}</td>
+        <td><input type="datetime-local" data-k="opens" value="${toLocalInput(a.opens)}"></td><td><input type="datetime-local" data-k="due" value="${toLocalInput(a.due)}"></td>
+        <td><input type="datetime-local" data-k="closes" value="${toLocalInput(a.closes)}"></td></tr>`).join("")}</table>
+    <div class="row" style="margin-top:12px"><button class="btn" id="sv">Save</button><span class="mutedtxt">${note || ""}</span></div>`;
+  const q = s => app.querySelector(s);
+  const first = rows[0] && rows[0].opens ? new Date(rows[0].opens) : null;
+  if (first) q("#qs").value = ymd(first);
+  if (rows[0] && rows[0].closes) q("#qc").value = toLocalInput(rows[rows.length - 1].closes);
+  q("#qf").onclick = () => {
+    if (!q("#qs").value) return toast("Pick the date Night 1 is assigned.");
+    let d = new Date(q("#qs").value + "T12:00");
+    const [oh, om] = q("#qo").value.split(":"), [dh, dm] = q("#qd").value.split(":");
+    app.querySelectorAll("#sched tr[data-a]").forEach((tr, i) => {
+      if (i > 0) d = nextSchoolDay(d, off);
+      const o = new Date(d); o.setHours(+oh, +om, 0, 0);
+      const due = nextSchoolDay(d, off); due.setHours(+dh, +dm, 0, 0);
+      tr.querySelector("[data-k=opens]").value = toLocalInput(o.toISOString());
+      tr.querySelector("[data-k=due]").value = toLocalInput(due.toISOString());
+      if (q("#qc").value) tr.querySelector("[data-k=closes]").value = q("#qc").value;
+    });
+  };
+  q("#sv").onclick = async () => {
+    const out = [...app.querySelectorAll("#sched tr[data-a]")].map(tr => {
+      const v = k => tr.querySelector(`[data-k=${k}]`).value;
+      if (!v("opens") || !v("due") || !v("closes")) return null;
+      return { a: tr.dataset.a, opens: new Date(v("opens")).toISOString(), due: new Date(v("due")).toISOString(), closes: new Date(v("closes")).toISOString() };
+    });
+    if (out.some(x => !x)) return toast("Fill in every date first.");
+    await saveFn(out); refresh();
+  };
+}
+function renderSchedule() {
+  app.innerHTML = `<h1>Due dates</h1>
+    <p class="sub">These dates apply to <b>your</b> students only. Each night opens, is due, and then stays open (late) until it closes. Late work loses ${D().scoring.late_pct_per_day}% per school day.</p>
+    <div class="card scroll" id="sched"></div>
+    <div class="card"><h2>No-school days</h2><p class="mutedtxt" style="margin-top:-4px">These don't count as late days and are skipped by Quick fill.${D().me.is_admin ? " Edit them on the Admin tab." : " The platform admin manages this list."}</p>
+      ${D().no_school.map(n => `<span class="chip closed" style="font-size:.88rem;padding:4px 10px;margin:2px">${new Date(n.day + "T12:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}${n.note ? " · " + esc(n.note) : ""}</span>`).join("") || `<span class="mutedtxt">None listed.</span>`}</div>`;
+  scheduleEditor(D().assignments, rows => call("t_set_schedule", { p_rows: rows }, "Due dates saved."), "Late penalties on finished work are recalculated when you save.");
+}
+
+// ---------------- EXPORT ----------------
+function csvParse(text) {
+  const rows = []; let row = [], f = "", q = false;
+  for (let i = 0; i < text.length; i++) { const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += c; }
+    else if (c === '"') q = true; else if (c === ",") { row.push(f); f = ""; }
+    else if (c === "\n" || c === "\r") { if (c === "\r" && text[i + 1] === "\n") i++; row.push(f); rows.push(row); row = []; f = ""; }
+    else f += c; }
+  if (f !== "" || row.length) { row.push(f); rows.push(row); }
+  return rows.filter(r => r.some(x => x.trim() !== ""));
+}
+const csvCell = v => /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v);
+function download(name, rows) { const blob = new Blob([rows.map(r => r.map(csvCell).join(",")).join("\r\n")], { type: "text/csv" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); }
+const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
+const shortTitle = a => "EOC Review " + a.title.replace(/^Night /, "Night ");
+
+function renderExport() {
+  const as = D().assignments;
+  app.innerHTML = `<h1>Export to Canvas</h1>
+    <p class="sub">Scores are out of 100 and include every penalty. Unfinished questions count as 0, so export after a night closes (or any time for a snapshot).</p>
+    <div class="card"><h2>1. Choose a class and nights</h2><div class="row" style="margin-bottom:8px">${classPicker()}</div>
+      ${as.map(a => `<label class="row" style="margin:6px 0"><input type="checkbox" class="ac" value="${a.id}" checked> ${esc(a.title)} <span class="mutedtxt">· closes ${fmtDT(a.closes)}</span></label>`).join("")}</div>
+    <div class="card"><h2>2a. Fill in your Canvas gradebook (recommended)</h2>
+      <ol class="mutedtxt" style="margin-top:-4px"><li>In Canvas, open <b>Grades → Export → Export Entire Gradebook</b> and save the CSV.</li>
+        <li>Choose that file below. For each night, pick its Canvas column, or let it create a new column.</li>
+        <li>Download the filled-in file, then in Canvas use <b>Grades → Import</b> and upload it.</li></ol>
+      <input type="file" id="cfile" accept=".csv,text/csv"><div id="map"></div></div>
+    <div class="card"><h2>2b. Or download a simple score sheet</h2><p class="mutedtxt" style="margin-top:-6px">One row per student, one column per night.</p>
+      <button class="btn alt" id="simple">⬇ Download scores CSV</button></div>`;
+  wireClassPicker(renderExport);
+  const chosen = () => [...app.querySelectorAll(".ac:checked")].map(i => as.find(a => a.id === i.value));
+  document.getElementById("simple").onclick = () => { const sm = stateMap(), cs = chosen();
+    download("eoc_review_scores.csv", [["Last", "First", "Class", ...cs.map(a => a.title)], ...students().map(s => [s.last, s.first, className(s.class_id), ...cs.map(a => summary(s, a, sm).score)])]); };
+  document.getElementById("cfile").onchange = async e => {
+    const file = e.target.files[0]; if (!file) return;
+    const rows = csvParse(await file.text()), box = document.getElementById("map");
+    if (!rows.length || norm(rows[0][0]) !== "student") { box.innerHTML = `<div class="err">That doesn't look like a Canvas gradebook export (the first column should be "Student").</div>`; return; }
+    const head = rows[0];
+    let idEnd = head.findIndex(h => norm(h) === "section"); if (idEnd < 0) idEnd = Math.max(1, head.findIndex(h => norm(h) === "sis login id"));
+    const canvasCols = head.slice(idEnd + 1).map((h, i) => ({ h, i: i + idEnd + 1 })).filter(c => /\(\d+\)\s*$/.test(c.h)), cs = chosen();
+    box.innerHTML = `<div class="card" style="margin-top:12px;background:#FAFCFE">${cs.map(a => { const guess = canvasCols.find(c => norm(c.h).includes(norm(shortTitle(a))));
+        return `<div class="row" style="margin:6px 0"><b style="min-width:160px">${esc(a.title)}</b> → <select data-a="${a.id}"><option value="new">➕ New column: "${esc(shortTitle(a))}"</option>
+          ${canvasCols.map(c => `<option value="${c.i}" ${guess && guess.i === c.i ? "selected" : ""}>${esc(c.h)}</option>`).join("")}</select></div>`; }).join("")}
+      <button class="btn" id="mk" style="margin-top:10px">⬇ Download file for Canvas import</button><div id="rep"></div></div>`;
+    document.getElementById("mk").onclick = () => {
+      const sm = stateMap(), studs = students(), maps = cs.map(a => ({ a, col: box.querySelector(`select[data-a="${a.id}"]`).value }));
+      const out = [[...head.slice(0, idEnd + 1), ...maps.map(m => m.col === "new" ? shortTitle(m.a) : head[+m.col])]], matched = new Set(), miss = [];
+      for (const r of rows.slice(1)) {
+        const name = r[0] || "";
+        if (/points possible/i.test(name)) { out.push([...r.slice(0, idEnd + 1), ...maps.map(m => m.col === "new" ? "100" : r[+m.col])]); continue; }
+        if (/^student, test$/i.test(name.trim())) continue;
+        const [cl, cf = ""] = name.split(",").map(norm);
+        const s = studs.find(s => norm(s.last) === cl && (cf.startsWith(norm(s.first)) || norm(s.first).startsWith(cf.split(" ")[0] || "#")))
+               || studs.find(s => norm(s.last) === cl && studs.filter(x => norm(x.last) === cl).length === 1);
+        if (!s) { miss.push(name); out.push([...r.slice(0, idEnd + 1), ...maps.map(() => "")]); continue; }
+        matched.add(s.id); out.push([...r.slice(0, idEnd + 1), ...maps.map(m => summary(s, m.a, sm).score)]);
+      }
+      const here = studs.filter(s => !matched.has(s.id));
+      download("canvas_import_eoc_review.csv", out);
+      document.getElementById("rep").innerHTML = `<div class="ok">Matched ${matched.size} student(s). File downloaded.</div>
+        ${miss.length ? `<div class="err">In Canvas but not matched (left blank): ${miss.map(esc).join("; ")}</div>` : ""}
+        ${here.length ? `<div class="err">On this platform but not in the Canvas file: ${here.map(s => esc(s.first + " " + s.last)).join("; ")}</div>` : ""}`;
+    };
+  };
+}
+
+// ---------------- ANSWER KEY ----------------
+async function renderKey() {
+  if (!S.bank) { app.innerHTML = `<div class="center">Loading the question bank…</div>`; S.bank = await call("t_question_bank", {}); }
+  const admin = D().me.is_admin;
+  const sets = S.bank.filter(b => S.keySet === "all" || String(b.set.id) === S.keySet);
+  const onCount = S.bank.reduce((t, b) => t + b.problems.filter(p => p.active).length, 0), all = S.bank.reduce((t, b) => t + b.problems.length, 0);
+  app.innerHTML = `<div class="row" style="justify-content:space-between"><div><h1>Answer key</h1>
+      <p class="sub">${onCount} of ${all} questions are on. ${admin ? "Switch a question off to remove it for <b>every</b> teacher's students; each night's 100 points are re-split over the questions still on. Student work on a switched-off question is kept." : "Only the platform admin can switch questions on or off."}</p></div>
+    <select id="ks"><option value="all">All sets</option>${S.bank.map(b => `<option value="${b.set.id}" ${String(b.set.id) === S.keySet ? "selected" : ""}>${esc(b.set.title)}${b.set.calc ? "" : " (no calc)"}</option>`).join("")}</select></div>
+    ${sets.map(b => `<div class="section-h ${b.set.calc ? "calc" : "nocalc"}"><span>${esc(b.set.title)}</span><small>${b.set.calc ? "Calculator ACTIVE" : "Calculator INACTIVE"} · ${b.problems.filter(p => p.active).length}/10 on</small></div>
+      ${b.problems.map(p => `<section class="prob ${p.active ? "" : "off"}">
+        <div class="prob-h"><h2>${esc(b.set.title)} #${p.n}</h2><span class="chip tag">📘 ${esc(EOC.topicName(p.topic))}</span>${p.std ? `<span class="chip closed">${esc(p.std)}</span>` : ""}
+          <span style="margin-left:auto">${admin ? `<label class="switch"><input type="checkbox" data-tog="${p.id}" ${p.active ? "checked" : ""}> ${p.active ? "On" : "Off"}</label>` : (p.active ? "" : `<span class="tag off">Off</span>`)}</span></div>
+        <div class="stem">${p.stem}</div>
+        ${p.parts.map(pa => `<div class="part">${pa.label || pa.prompt ? `<div class="part-h">${pa.label ? `<div class="plabel">${esc(pa.label)}</div>` : ""}<div class="prompt">${pa.prompt}</div></div>` : ""}
+          <div class="answer" style="margin-left:0">${EOC.renderInput({ ...pa, last_answer: null }, {}, null, true, pa.kind === "mc" ? pa.answer.accept : pa.kind === "multi" ? pa.answer.set : null)}</div>
+          <div class="keyans"><b>Answer:</b> ${pa.answer_display}<div style="margin-top:6px;color:var(--ink)">${pa.explanation}</div></div>
+          ${pa.hints.map((h, i) => `<div class="keyhint"><b>Hint ${i + 1}:</b> ${h}</div>`).join("")}</div>`).join("")}
+      </section>`).join("")}`).join("")}`;
+  document.getElementById("ks").onchange = e => { S.keySet = e.target.value; renderKey(); };
+  app.querySelectorAll("[data-tog]").forEach(c => c.onchange = async () => {
+    try { await call("a_toggle_problem", { p_problem: c.dataset.tog, p_active: c.checked }, c.checked ? "Question switched on." : "Question switched off.");
+          S.bank.forEach(b => b.problems.forEach(p => { if (p.id === c.dataset.tog) p.active = c.checked; })); S.data = await rpc("t_data", { p_token: S.tok }); renderKey(); }
+    catch (e) { c.checked = !c.checked; }
+  });
+}
+
+// ---------------- ADMIN ----------------
+async function renderAdmin() {
+  app.innerHTML = `<div class="center">Loading…</div>`;
+  const teachers = await call("a_teachers", {}), sc = D().scoring;
+  app.innerHTML = `<h1>Admin</h1><p class="sub">Department-wide settings. Only you see this tab.</p>
+    <div class="card"><h2>Teachers</h2>
+      <table class="t"><tr><th>Name</th><th>Email</th><th class="c">Classes</th><th class="c">Students</th><th>Status</th><th></th></tr>
+      ${teachers.map(t => `<tr style="${t.active ? "" : "opacity:.5"}"><td><b>${esc(t.name)}</b>${t.is_admin ? ` <span class="tag ext">admin</span>` : ""}</td><td>${esc(t.email)}</td>
+        <td class="c">${t.classes}</td><td class="c">${t.students}</td><td>${t.active ? "Active" : "Off"}</td>
+        <td class="row" style="justify-content:flex-end"><button class="btn alt sm" data-pw="${t.id}">Reset password</button>
+          ${t.is_admin ? "" : t.active ? `<button class="btn warn sm" data-ta="deactivate" data-id="${t.id}">Turn off</button>` : `<button class="btn alt sm" data-ta="activate" data-id="${t.id}">Turn on</button>`}</td></tr>`).join("")}</table>
+      <h2 style="margin-top:16px">Add a teacher</h2>
+      <div class="row"><input type="text" id="tn" placeholder="Name (students see this)"><input type="email" id="te" placeholder="School email"><input type="text" id="tp" placeholder="Starting password (8+ characters)">
+        <button class="btn" id="tadd">Add teacher</button></div>
+      <p class="mutedtxt">Send them the teacher link and their starting password; they can change it under their name in the menu.</p></div>
+    <div class="card"><h2>Scoring rules ${sc.draft ? `<span class="tag">draft</span>` : ""}</h2>
+      <p class="mutedtxt" style="margin-top:-6px">Changes apply right away to every teacher's gradebook, including work already finished.</p>
+      <div class="grid2">
+        <label>Tries per question<input type="number" id="s_ma" min="1" max="10" value="${sc.max_attempts}"></label>
+        <label>% off per wrong try<input type="number" id="s_wp" min="0" max="50" value="${sc.wrong_pct}"></label>
+        <label>Hint costs (%)<input type="text" id="s_hc" value="${sc.hint_costs.join(", ")}"><small>Comma-separated. Most questions have 2 hints.</small></label>
+        <label>Lowest score for a correct answer (%)<input type="number" id="s_fl" min="0" max="100" value="${sc.floor_pct}"></label>
+        <label>% off per school day late<input type="number" id="s_lp" min="0" max="50" value="${sc.late_pct_per_day}"></label>
+        <label style="flex-direction:row;align-items:center;gap:8px;margin-top:22px"><input type="checkbox" id="s_dr" ${sc.draft ? "checked" : ""}> Show “draft rules” to students</label></div>
+      <button class="btn" id="ssave" style="margin-top:12px">Save scoring rules</button></div>
+    <div class="card scroll"><h2>Department default due dates</h2>
+      <p class="mutedtxt" style="margin-top:-6px">New teachers start with these dates. Changing them here doesn't change dates a teacher already has.</p><div id="sched"></div></div>
+    <div class="card"><h2>No-school days</h2>
+      <div class="row" style="margin-bottom:10px">${D().no_school.map(n => `<span class="chip closed" style="font-size:.88rem;padding:4px 10px">${n.day}${n.note ? " · " + esc(n.note) : ""} <a href="#" data-rm="${n.day}">✕</a></span>`).join("") || `<span class="mutedtxt">None yet.</span>`}</div>
+      <div class="row"><input type="date" id="nd"><input type="text" id="nn" placeholder="Note (optional)"><button class="btn alt" id="nadd">Add day</button></div></div>`;
+  app.querySelectorAll("[data-pw]").forEach(b => b.onclick = async () => { const p = prompt("New password for this teacher (8+ characters):"); if (p) await call("a_teacher", { p_action: "reset_password", p_teacher: +b.dataset.pw, p_name: null, p_email: null, p_password: p }, "Password reset."); });
+  app.querySelectorAll("[data-ta]").forEach(b => b.onclick = async () => { await call("a_teacher", { p_action: b.dataset.ta, p_teacher: +b.dataset.id, p_name: null, p_email: null, p_password: null }); renderAdmin(); });
+  document.getElementById("tadd").onclick = async () => {
+    await call("a_teacher", { p_action: "add", p_teacher: null, p_name: document.getElementById("tn").value, p_email: document.getElementById("te").value, p_password: document.getElementById("tp").value }, "Teacher added.");
+    renderAdmin();
+  };
+  document.getElementById("ssave").onclick = async () => {
+    const v = id => Number(document.getElementById(id).value);
+    const hc = document.getElementById("s_hc").value.split(/[,\s]+/).filter(Boolean).map(Number);
+    if (hc.some(isNaN)) return toast("Hint costs should be numbers, like 5, 10, 20.");
+    await call("a_set_scoring", { p_scoring: { max_attempts: v("s_ma"), wrong_pct: v("s_wp"), hint_costs: hc, floor_pct: v("s_fl"), late_pct_per_day: v("s_lp"), draft: document.getElementById("s_dr").checked } }, "Scoring rules saved.");
+    refresh();
+  };
+  scheduleEditor(D().assignments.map(a => ({ ...a, ...a.default })), rows => call("a_defaults", { p_rows: rows }, "Default dates saved."));
+  document.getElementById("nadd").onclick = async () => { const d = document.getElementById("nd").value; if (!d) return;
+    await call("a_no_school", { p_day: d, p_note: document.getElementById("nn").value, p_remove: false }); await refresh(); S.tab = "admin"; renderAdmin(); };
+  app.querySelectorAll("[data-rm]").forEach(a => a.onclick = async e => { e.preventDefault();
+    await call("a_no_school", { p_day: a.dataset.rm, p_note: null, p_remove: true }); await refresh(); renderAdmin(); });
+}
+
+// ---------------- ACCOUNT ----------------
+function renderAccount() {
+  app.innerHTML = `<div class="card" style="max-width:460px"><h1>${esc(D().me.name)}</h1><p class="sub">${esc(D().me.email)}</p>
+    <h2>Change password</h2>
+    <input type="password" id="po" placeholder="Current password" style="width:100%;margin:4px 0">
+    <input type="password" id="pn" placeholder="New password (8+ characters)" style="width:100%;margin:4px 0">
+    <div class="row" style="margin-top:8px"><button class="btn" id="pc">Change password</button><button class="btn alt" id="lo">Log out</button></div></div>`;
+  document.getElementById("pc").onclick = () => call("t_change_password", { p_old: document.getElementById("po").value, p_new: document.getElementById("pn").value }, "Password changed.");
+  document.getElementById("lo").onclick = () => { rpc("t_logout", { p_token: S.tok }).catch(() => {}); ss.del("eoc_ttok"); S.tok = null; showLogin(); };
+}
+
+S.tok ? refresh() : showLogin();
+</script>
+</body>
+</html>

@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Math 1 EOC Review</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header>
+  <div class="brand" id="brand">BR: Math 1 <small>EOC Review</small></div>
+  <div class="who" id="who"></div>
+</header>
+<main id="app"><div class="center">Loading…</div></main>
+<div id="calc" role="dialog" aria-label="Desmos graphing calculator">
+  <div class="cbar" id="calcbar">
+    <b>📈 Desmos</b>
+    <a href="https://www.desmos.com/calculator" target="_blank" rel="noopener" title="Open in a new tab">↗ New tab</a>
+    <button class="close" id="calcclose" title="Hide (your graph stays)">×</button>
+  </div>
+  <span class="grip">◢</span>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/common.js"></script>
+<script src="js/review-data.js"></script>
+<script>
+const { esc, fmt, fmtDate, fmtTime, rpc, store } = EOC;
+const app = document.getElementById("app"), who = document.getElementById("who");
+const calc = EOC.setupCalc(), drawer = EOC.setupDrawer();
+const state = { token: store.get("eoc_token"), me: null, a: null, pending: {}, pick: {}, feedback: {}, confirm: null };
+
+function handle(e, fallback) {
+  if (e.expired) { store.del("eoc_token"); state.token = null; showLogin("Please log in again."); return; }
+  (fallback || (m => app.innerHTML = `<div class="err">${esc(m)}</div>`))(e.message);
+}
+
+// ---------------- LOGIN: teacher → class → name → PIN ----------------
+async function showLogin(note) {
+  who.innerHTML = `<button class="linkbtn" id="rvb">📘 Review topics</button>`;
+  document.getElementById("rvb").onclick = () => showReviewHub(false);
+  app.innerHTML = `<div class="center">Loading…</div>`;
+  let teachers;
+  try { teachers = await rpc("hw_teachers"); } catch (e) { return handle(e); }
+  const last = JSON.parse(store.get("eoc_last") || "{}");
+  if (teachers.length === 1) return pickClass(teachers[0], note, true);
+  app.innerHTML = `<h1>Who is your Math 1 teacher?</h1><p class="sub">Tap your teacher's name.</p>
+    ${note ? `<div class="banner">${esc(note)}</div>` : ""}
+    <div class="names">${teachers.map(t => `<button data-id="${t.id}">${esc(t.name)}</button>`).join("")}</div>
+    ${teachers.length ? "" : `<p class="center">No classes are set up yet.</p>`}`;
+  app.querySelectorAll(".names button").forEach(b => b.onclick = () => pickClass(teachers.find(t => t.id === +b.dataset.id), note));
+}
+
+async function pickClass(t, note, only) {
+  app.innerHTML = `<div class="center">Loading…</div>`;
+  let cls; try { cls = await rpc("hw_classes", { p_teacher: t.id }); } catch (e) { return handle(e); }
+  if (cls.length === 1) return pickName(t, cls[0], note, only, true);
+  app.innerHTML = `${only ? "" : `<button class="back" id="bk">← Teachers</button>`}
+    <h1>Which class?</h1><p class="sub">${esc(t.name)}</p>${note ? `<div class="banner">${esc(note)}</div>` : ""}
+    <div class="names">${cls.map(c => `<button data-id="${c.id}">${esc(c.name)}</button>`).join("")}</div>`;
+  if (!only) document.getElementById("bk").onclick = () => showLogin();
+  app.querySelectorAll(".names button").forEach(b => b.onclick = () => pickName(t, cls.find(c => c.id === +b.dataset.id), note, only, false));
+}
+
+async function pickName(t, c, note, onlyT, onlyC) {
+  app.innerHTML = `<div class="center">Loading class list…</div>`;
+  let list; try { list = await rpc("hw_students", { p_class: c.id }); } catch (e) { return handle(e); }
+  app.innerHTML = `${onlyT && onlyC ? "" : `<button class="back" id="bk">← Back</button>`}
+    <h1>Who are you?</h1><p class="sub">${esc(t.name)} · ${esc(c.name)} — tap your name, then enter your 4-digit PIN.</p>
+    ${note ? `<div class="banner">${esc(note)}</div>` : ""}
+    <div class="names">${list.map(s => `<button data-id="${s.id}">${esc(s.name)}</button>`).join("")}</div>
+    ${list.length ? "" : `<p class="center">No students yet. Ask your teacher.</p>`}`;
+  const bk = document.getElementById("bk");
+  if (bk) bk.onclick = () => onlyC ? showLogin() : pickClass(t, null, onlyT);
+  app.querySelectorAll(".names button").forEach(b => b.onclick = () => showPin(+b.dataset.id, b.textContent, () => pickName(t, c, null, onlyT, onlyC)));
+}
+
+function showPin(id, name, back) {
+  let pin = "", busy = false;
+  app.innerHTML = `<div class="pinbox"><h2>Hi, ${esc(name)}!</h2><p class="sub" style="margin:4px 0 0">Enter your PIN</p>
+      <div class="dots" id="dots">${"<span></span>".repeat(4)}</div><div id="perr"></div>
+      <div class="pad">${[1,2,3,4,5,6,7,8,9].map(n => `<button data-k="${n}">${n}</button>`).join("")}
+        <button data-k="back" class="muted">⌫</button><button data-k="0">0</button><button data-k="cancel" class="muted">Not me</button></div></div>`;
+  const dots = () => document.querySelectorAll("#dots span").forEach((d, i) => d.classList.toggle("on", i < pin.length));
+  async function press(k) {
+    if (busy) return;
+    if (k === "cancel") { document.onkeydown = null; return back(); }
+    if (k === "back") pin = pin.slice(0, -1); else if (/^\d$/.test(k) && pin.length < 4) pin += k;
+    dots();
+    if (pin.length === 4) {
+      busy = true;
+      try {
+        const r = await rpc("hw_login", { p_student: id, p_pin: pin });
+        state.token = r.token; store.set("eoc_token", r.token); document.onkeydown = null; showList();
+      } catch (e) {
+        document.getElementById("perr").innerHTML = `<div class="err">${esc(e.message)}</div>`;
+        pin = ""; dots(); busy = false;
+      }
+    }
+  }
+  app.querySelectorAll(".pad button").forEach(b => b.onclick = () => press(b.dataset.k));
+  document.onkeydown = e => { if (/^\d$/.test(e.key)) press(e.key); else if (e.key === "Backspace") press("back"); };
+}
+
+async function logout() {
+  calc.reset();
+  const t = state.token; state.token = null; store.del("eoc_token");
+  if (t) rpc("hw_logout", { p_token: t }).catch(() => {});
+  showLogin();
+}
+
+// ---------------- REVIEW HUB ----------------
+function showReviewHub(loggedIn) {
+  calc.hide();
+  const R = window.EOC_REVIEW;
+  app.innerHTML = `<button class="back" id="bk">← ${loggedIn ? "My homework" : "Log in"}</button>
+    <h1>📘 Review topics</h1><p class="sub">Everything on the Math 1 EOC, grouped the way the test is. Open a topic any time — reviewing never costs points.</p>
+    ${R.domains.map(d => `<div class="domain-h"><b>${esc(d.name)}</b> <span>${esc(d.weight)}</span></div>
+      <div class="topics">${Object.values(R.topics).filter(t => t.domain === d.id).map(t => `
+        <button class="topic" data-t="${t.id}"><b>${esc(t.name)}</b><small>${esc(t.blurb)}</small></button>`).join("")}</div>`).join("")}`;
+  document.getElementById("bk").onclick = () => loggedIn ? showList() : showLogin();
+  app.querySelectorAll("[data-t]").forEach(b => b.onclick = () => drawer.open(b.dataset.t));
+}
+
+// ---------------- ASSIGNMENT LIST ----------------
+function statusChip(a) {
+  if (a.parts && a.done === a.parts) return `<span class="chip done">Complete</span>`;
+  return { open: `<span class="chip open">Open</span>`, late: `<span class="chip late">Late</span>`,
+           closed: `<span class="chip closed">Closed</span>`, upcoming: `<span class="chip upcoming">Not open yet</span>` }[a.status] || "";
+}
+function dueLine(a) {
+  const lp = state.me.scoring.late_pct_per_day;
+  if (a.status === "upcoming") return a.opens ? `Opens ${fmtDate(a.opens)}` : "Not scheduled yet";
+  if (a.status === "closed") return `Closed ${fmtDate(a.closes)}`;
+  if (a.status === "late") return `Was due ${fmtDate(a.due)} · −${lp}% per school day late · closes ${fmtDate(a.closes)}`;
+  return a.due ? `Due ${fmtDate(a.due)} at ${fmtTime(a.due)}` : "Open";
+}
+
+async function showList() {
+  calc.hide(); drawer.close();
+  app.innerHTML = `<div class="center">Loading your homework…</div>`;
+  let d; try { d = await rpc("hw_my_assignments", { p_token: state.token }); } catch (e) { return handle(e); }
+  state.me = d;
+  who.innerHTML = `<span>${esc(d.name)}</span><button class="linkbtn" id="lo">Log out</button>`;
+  document.getElementById("lo").onclick = logout;
+  const list = [...d.assignments].sort((a, b) => a.sort - b.sort);
+  app.innerHTML = `
+    ${d.is_test ? `<div class="banner">Teacher preview: you're the hidden Test Student. Every night is open, and nothing here counts.</div>` : ""}
+    <h1>EOC Review Homework</h1>
+    <p class="sub">Each night is worth 100 points. Questions marked <span class="chip nocalc">No calculator</span> are practice for the first 19 questions of the EOC.</p>
+    <div class="tools">
+      <button class="toolbtn" data-t="hub">📘 Review topics</button>
+      <button class="toolbtn" data-t="eoc-expect">🗓 What to expect on the EOC</button>
+      <button class="toolbtn" data-t="eoc-strategies">🎯 Test strategies</button>
+    </div>
+    <div class="alist">${list.map(a => `
+      <button class="acard" data-id="${a.id}" ${a.status === "upcoming" ? "disabled" : ""}>
+        <div class="main">
+          <div class="title">${esc(a.title)} ${statusChip(a)}</div>
+          <div class="meta">${(a.sets || []).map(s => `${esc(s.title)} <span class="chip ${s.calc ? "calc" : "nocalc"}">${s.calc ? "Calculator" : "No calculator"}</span>`).join(" &nbsp;")}</div>
+          <div class="meta">${dueLine(a)}</div>
+          <div class="bar"><i style="width:${a.parts ? (100 * a.done / a.parts) : 0}%"></i></div>
+          <div class="meta">${a.done} of ${a.parts} questions finished</div>
+        </div>
+        <div class="score"><b>${fmt(a.score)}</b><small>/ 100</small></div>
+      </button>`).join("") || `<p class="center">No homework yet.</p>`}
+    </div>`;
+  app.querySelectorAll(".acard").forEach(b => b.onclick = () => showAssignment(b.dataset.id));
+  app.querySelectorAll("[data-t]").forEach(b => b.onclick = () => b.dataset.t === "hub" ? showReviewHub(true) : drawer.open(b.dataset.t));
+}
+
+// ---------------- ASSIGNMENT ----------------
+async function showAssignment(id) {
+  app.innerHTML = `<div class="center">Loading…</div>`;
+  try { state.a = await rpc("hw_assignment", { p_token: state.token, p_assignment: id }); }
+  catch (e) { return handle(e, m => app.innerHTML = `<div class="err">${esc(m)}</div><button class="back" onclick="showList()">← All homework</button>`); }
+  state.pending = {}; state.confirm = null; state.feedback = {}; state.pick = {};
+  renderAssignment(); window.scrollTo(0, 0);
+}
+const allParts = () => state.a.sections.flatMap(s => s.problems.flatMap(p => p.parts));
+const findPart = pid => allParts().find(p => p.id === pid);
+const sectionOf = pid => state.a.sections.find(s => s.problems.some(p => p.parts.some(x => x.id === pid)));
+function replacePart(np) {
+  for (const s of state.a.sections) for (const pr of s.problems) pr.parts = pr.parts.map(p => p.id === np.id ? np : p);
+  state.a.score = allParts().reduce((t, p) => t + Number(p.score), 0);
+}
+
+function rulesHtml(sc) {
+  return `<details class="rules"><summary>How scoring works${sc.draft ? " (draft rules)" : ""}</summary><ul>
+    <li>You get <b>${sc.max_attempts} tries</b> per question. Each wrong try takes off <b>${sc.wrong_pct}%</b> of that question.</li>
+    <li>Hints: ${sc.hint_costs.map((c, i) => `Hint ${i + 1} costs <b>${c}%</b>`).join(", ")}. Only your biggest hint counts. They don't add up.</li>
+    <li>If you get it right, you always keep at least <b>${sc.floor_pct}%</b> of the question.</li>
+    <li>If you run out of tries, the question scores 0 and you'll see the answer and an explanation.</li>
+    <li>Late work loses <b>${sc.late_pct_per_day}%</b> per school day.</li>
+    <li>📘 Review links are always free.</li></ul></details>`;
+}
+
+function renderAssignment() {
+  const a = state.a, closed = a.status === "closed";
+  const sub = a.status === "late" ? `Late · was due ${fmtDate(a.due)} · closes ${fmtDate(a.closes)}`
+    : closed ? `Closed ${fmtDate(a.closes)} · answers shown below` : a.due ? `Due ${fmtDate(a.due)} at ${fmtTime(a.due)}` : "";
+  let qn = 0;
+  app.innerHTML = `
+    <div class="topbar"><button class="back" id="back">← All homework</button>
+      <div class="t"><b>${esc(a.title)}</b><small>${sub}</small></div>
+      <div class="total" id="total">${fmt(a.score)}<small>of 100</small></div></div>
+    ${a.status === "late" ? `<div class="banner">This homework is late. Questions you finish now lose ${a.scoring.late_pct_per_day}% for each school day past the due date.</div>` : ""}
+    ${rulesHtml(a.scoring)}
+    ${a.sections.map((s, si) => `
+      <div class="section-h ${s.set.calc ? "calc" : "nocalc"}">
+        <span>Part ${"ABCDEFG"[si]} · ${esc(s.set.title)}</span>
+        <small>${s.set.calc ? "📈 Calculator ACTIVE — Desmos allowed" : "🚫 Calculator INACTIVE — no Desmos, no handheld calculator"}</small></div>
+      ${s.problems.map(pr => renderProblem(pr, s.set.calc, ++qn)).join("")}`).join("")}`;
+  document.getElementById("back").onclick = showList;
+  wire();
+}
+
+function renderProblem(pr, calcOn, n) {
+  return `<section class="prob" data-prob="${pr.id}">
+    <div class="prob-h"><h2>Question ${n}${pr.title ? ": " + esc(pr.title) : ""}</h2><span class="tip" style="margin:0">(${esc(setTitle(pr))} #${pr.n})</span>
+      ${pr.topic ? `<button class="chip tag" data-rv="${pr.topic}" title="Open a quick review of this topic (free)">📘 ${esc(EOC.topicName(pr.topic))}</button>` : ""}</div>
+    <div class="stem">${pr.stem}</div>
+    ${calcOn ? `<button class="desmos" data-calc>📈 Open Desmos graphing calculator</button>` : `<div class="nocalc-note">🚫 No calculator on this one — work it out by hand.</div>`}
+    ${pr.parts.map(renderPart).join("")}
+  </section>`;
+}
+
+const setTitle = pr => (state.a.sections.find(s => s.problems.includes(pr)) || { set: { title: "" } }).set.title;
+const maxPct = (p, sc, tier = p.hint_tier) => Math.max(sc.floor_pct, 100 - (tier ? p.hint_costs[tier - 1] : 0) - sc.wrong_pct * p.wrong);
+
+function renderPart(p) {
+  const sc = state.a.scoring, closed = state.a.status === "closed", locked = p.done || closed;
+  const left = p.max_attempts - p.wrong, fb = state.feedback[p.id];
+  let fbHtml = "";
+  if (p.done && p.correct) {
+    const bits = [];
+    if (p.hint_tier) bits.push(`used hint ${p.hint_tier}`);
+    if (p.wrong) bits.push(`${p.wrong} wrong ${p.wrong === 1 ? "try" : "tries"}`);
+    if (p.late_days) bits.push(`${p.late_days} school day${p.late_days > 1 ? "s" : ""} late`);
+    fbHtml = `<div class="fb good"><b>✓ Correct!</b> You earned ${fmt(p.score)} of ${fmt(p.points)} points${bits.length ? ` (${bits.join(", ")})` : ""}.
+      ${p.explanation ? `<div class="x">${p.explanation}</div>` : ""}</div>`;
+  } else if (p.done) {
+    fbHtml = `<div class="fb out"><b>Out of tries.</b> This question scores 0.<div class="x"><b>Answer:</b> ${p.answer_display}</div><div class="x">${p.explanation || ""}</div></div>`;
+  } else if (closed) {
+    fbHtml = `<div class="fb out"><b>Answer:</b> ${p.answer_display || ""}<div class="x">${p.explanation || ""}</div></div>`;
+  } else if (fb) {
+    fbHtml = fb.invalid ? `<div class="fb info">${esc(fb.msg)}</div>`
+      : `<div class="fb bad"><b>Not quite.</b> Check your work and try again.
+           <div class="x">${left} ${left === 1 ? "try" : "tries"} left.${left <= 2 && p.hint_tier < p.hint_count ? " A hint might help." : ""}</div></div>`;
+  }
+  const next = p.hint_tier + 1, showHint = !locked && p.hint_tier < p.hint_count;
+  return `<div class="part" data-part="${p.id}">
+    ${p.label || p.prompt ? `<div class="part-h">${p.label ? `<div class="plabel">${esc(p.label)}</div>` : ""}<div class="prompt">${p.prompt}</div><div class="pts">${fmt(p.points)} pts</div></div>` : ""}
+    <div class="answer">${EOC.renderInput(p, state.pending, state.pick[p.id], locked)}</div>
+    ${(p.hints || []).map((h, i) => `<div class="hint"><b>Hint ${i + 1}:</b> ${h}</div>`).join("")}
+    ${state.confirm === p.id ? `<div class="confirm">
+        <span>Hint ${next} costs ${p.hint_costs[next - 1]}% of this question${p.hint_tier ? ` (it replaces your Hint ${p.hint_tier} cost, not adds to it)` : ""}. The most you could earn drops to <b>${maxPct(p, sc, next)}%</b>. Show it?</span>
+        <button class="yes" data-act="hint-yes">Show hint ${next}</button><button class="no" data-act="hint-no">Cancel</button></div>` : ""}
+    ${!locked ? `<div class="actions">
+        <button class="check" data-act="check">Check</button>
+        <span class="tries">Tries left: ${Array.from({ length: p.max_attempts }, (_, i) => `<i class="${i < p.wrong ? "used" : ""}"></i>`).join("")}</span>
+        ${showHint ? `<button class="hintbtn" data-act="hint">💡 Hint ${next} (−${p.hint_costs[next - 1]}%)</button>` : ""}
+        <span class="maxpct">Most you can earn now: ${maxPct(p, sc)}% · ${fmt(p.points)} pts</span></div>` : ""}
+    ${fbHtml}
+  </div>`;
+}
+
+function rerenderPart(pid) {
+  const el = app.querySelector(`[data-part="${pid}"]`);
+  const tmp = document.createElement("div"); tmp.innerHTML = renderPart(findPart(pid));
+  el.replaceWith(tmp.firstElementChild);
+  document.getElementById("total").innerHTML = `${fmt(state.a.score)}<small>of 100</small>`;
+  wire();
+}
+
+function place(pid, slot, tile) {
+  const p = findPart(pid), cur = { ...(EOC.collect(p, null, state.pending) || {}) };
+  if (!p.spec.reuse) for (const k of Object.keys(cur)) if (cur[k] === tile) delete cur[k];
+  cur[slot] = tile; state.pending[pid] = cur; state.pick[pid] = null; rerenderPart(pid);
+}
+
+function wire() {
+  app.querySelectorAll("[data-calc]").forEach(b => b.onclick = calc.open);
+  app.querySelectorAll("[data-rv]").forEach(b => b.onclick = () => drawer.open(b.dataset.rv));
+  app.querySelectorAll(".part").forEach(el => {
+    if (el.dataset.wired) return; el.dataset.wired = 1;
+    const pid = el.dataset.part, p = () => findPart(pid);
+    el.querySelectorAll("input.num").forEach(inp => {
+      inp.oninput = () => {
+        state.pending[pid] = EOC.collectDraft(p(), el, state.pending); inp.classList.remove("bad");
+        const pv = el.querySelector("[data-preview]");
+        if (pv) pv.innerHTML = inp.value.trim() ? "Looks like: " + EOC.pretty(inp.value) : "";
+      };
+      inp.onkeydown = e => { if (e.key === "Enter") check(pid); };
+    });
+    el.querySelectorAll("[data-f=choice]").forEach(b => b.onclick = () => {
+      if (p().kind === "mc") state.pending[pid] = b.dataset.id;
+      else { const cur = new Set(EOC.collect(p(), el, state.pending)); cur.has(b.dataset.id) ? cur.delete(b.dataset.id) : cur.add(b.dataset.id); state.pending[pid] = [...cur]; }
+      rerenderPart(pid);
+    });
+    el.querySelectorAll("[data-f=tile]").forEach(c => {
+      c.onclick = () => { state.pick[pid] = state.pick[pid] === c.dataset.id ? null : c.dataset.id; rerenderPart(pid); };
+      c.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); c.click(); } };
+      c.ondragstart = e => e.dataTransfer.setData("text/plain", c.dataset.id);
+    });
+    el.querySelectorAll("[data-f=slot]").forEach(s => {
+      s.onclick = () => {
+        if (state.pick[pid]) return place(pid, s.dataset.id, state.pick[pid]);
+        const cur = { ...(EOC.collect(p(), el, state.pending) || {}) };
+        if (cur[s.dataset.id]) { delete cur[s.dataset.id]; state.pending[pid] = cur; rerenderPart(pid); }
+      };
+      s.ondragover = e => { e.preventDefault(); s.classList.add("over"); };
+      s.ondragleave = () => s.classList.remove("over");
+      s.ondrop = e => { e.preventDefault(); const id = e.dataTransfer.getData("text/plain"); if (id) place(pid, s.dataset.id, id); };
+    });
+    el.querySelectorAll("[data-act]").forEach(b => b.onclick = () => {
+      const act = b.dataset.act;
+      if (act === "check") check(pid);
+      if (act === "hint") { state.confirm = pid; rerenderPart(pid); }
+      if (act === "hint-no") { state.confirm = null; rerenderPart(pid); }
+      if (act === "hint-yes") takeHint(pid);
+    });
+  });
+}
+
+async function check(pid) {
+  const p = findPart(pid), el = app.querySelector(`[data-part="${pid}"]`);
+  const ans = EOC.collect(p, el, state.pending);
+  state.pending[pid] = EOC.collectDraft(p, el, state.pending);
+  // friendly checks before using a try
+  if (p.kind === "num" && ans.v == null) { state.feedback[pid] = { invalid: true, msg: ans.raw.trim() ? "That doesn't look like a number. Check what you typed." : "Type your answer first." }; return rerenderPart(pid); }
+  if (p.kind === "expr" && ans.v == null) { state.feedback[pid] = { invalid: true, msg: ans.raw.trim() ? "We couldn't read that. Check your parentheses, and use ^ for exponents." : "Type your answer first." }; return rerenderPart(pid); }
+  if (p.kind === "nums" && ans.v.some(v => v == null)) { state.feedback[pid] = { invalid: true, msg: "Fill in every box with a number." }; return rerenderPart(pid); }
+  if (p.kind === "coord" && ans.some(pt => pt.some(v => v == null))) { state.feedback[pid] = { invalid: true, msg: "Enter both coordinates as numbers." }; return rerenderPart(pid); }
+  const btn = el.querySelector(".check"); if (btn) { btn.disabled = true; btn.textContent = "Checking…"; }
+  try {
+    const r = await rpc("hw_submit", { p_token: state.token, p_part: pid, p_answer: ans });
+    state.feedback[pid] = r.result;
+    if (r.result && !r.result.invalid) delete state.pending[pid];
+    replacePart(r.part);
+  } catch (e) {
+    if (e.expired) return handle(e);
+    state.feedback[pid] = { invalid: true, msg: e.message };
+  }
+  state.confirm = null; rerenderPart(pid);
+}
+
+async function takeHint(pid) {
+  const el = app.querySelector(`[data-part="${pid}"]`);
+  state.pending[pid] = EOC.collectDraft(findPart(pid), el, state.pending);
+  try { const r = await rpc("hw_hint", { p_token: state.token, p_part: pid }); replacePart(r.part); }
+  catch (e) { if (e.expired) return handle(e); state.feedback[pid] = { invalid: true, msg: e.message }; }
+  state.confirm = null; rerenderPart(pid);
+}
+
+state.token ? showList() : showLogin();
+</script>
+</body>
+</html>
