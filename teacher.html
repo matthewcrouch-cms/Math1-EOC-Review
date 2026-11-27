@@ -271,22 +271,29 @@ function renderInsights() {
 
 // ---------------- CLASSES & PINS ----------------
 function parseNames(text) {
-  // Accepts "Last, First", "First Last", or pasted spreadsheet/table rows. An optional PIN can be anywhere after the name.
+  // Accepts "Last, First", "First Last", or rows copied from a spreadsheet or another site's table.
+  // An optional 4-digit PIN can come after the name: same line, or (when a copied table puts each cell on its own line) the lines below it.
   const pinOf = cells => { const p = cells.find(c => /^\d{4}$/.test(c)) || cells.find(c => /^\d{1,3}$/.test(c)); return p ? p.padStart(4, "0") : ""; };
-  return text.split(/\r?\n/).map(l => l.trim()).filter(l => l && !/\bname\b/i.test(l)).map(l => {
-    let first = "", last = "", rest = [];
-    if (l.includes("\t")) {
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l && !/^(name|last\s*name)\b/i.test(l));
+  const isComma = l => /^[^,\t\d]+,\s*[^,\t\d]+/.test(l);
+  if (lines.some(isComma)) {
+    // "Last, First" records; anything that isn't a name line belongs to the record above it
+    const out = [];
+    for (const l of lines) {
       const c = l.split("\t").map(x => x.trim());
-      if (c[0].includes(",")) { [last, first] = c[0].split(",").map(x => x.trim()); rest = c.slice(1); }
-      else { last = c[0]; first = c[1] || ""; rest = c.slice(2); }
-    } else if (l.includes(",")) {
-      const c = l.split(",").map(x => x.trim()); last = c[0]; first = c[1] || ""; rest = c.slice(2);
-    } else {
-      const w = l.split(/\s+/); if (/^\d{1,4}$/.test(w[w.length - 1])) rest = [w.pop()];
-      last = w.pop() || ""; first = w.join(" ");
+      if (isComma(c[0])) {
+        const [last, first] = c[0].split(",").map(x => x.trim());
+        out.push({ last, first, rest: c.slice(1).concat(c[0].split(",").slice(2).map(x => x.trim())) });
+      } else if (out.length) out[out.length - 1].rest.push(...c);
     }
+    return out.map(r => ({ first: r.first, last: r.last, pin: pinOf(r.rest) })).filter(n => n.first && n.last);
+  }
+  return lines.map(l => {
+    let first = "", last = "", rest = [];
+    if (l.includes("\t")) { const c = l.split("\t").map(x => x.trim()); last = c[0]; first = c[1] || ""; rest = c.slice(2); }
+    else { const w = l.split(/\s+/); if (/^\d{1,4}$/.test(w[w.length - 1])) rest = [w.pop()]; last = w.pop() || ""; first = w.join(" "); }
     return { first, last, pin: pinOf(rest) };
-  }).filter(n => n.first && n.last);
+  }).filter(n => n.first && n.last && !/\d/.test(n.first + n.last));
 }
 function renderRoster() {
   const cls = D().classes, st = students(true);
@@ -301,7 +308,7 @@ function renderRoster() {
       <div class="row" style="margin-bottom:8px">Add to: ${classPicker("addto", false)}</div>
       <p class="mutedtxt" style="margin-top:0">One student per line: <b>Last, First</b>, or paste spreadsheet columns (Last Name, then First Name). To keep PINs students already know, add the PIN after the name, like <b>Ruiz, Maya, 0427</b>. You can also copy the whole roster table from the Unit 7 homework platform's <b>Roster &amp; PINs</b> tab and paste it here. Students without a PIN get a random one. Pasting a student who is already here updates their PIN.</p>
       <textarea id="names" placeholder="Ruiz, Maya, 0427&#10;Ortiz, Ben, 5813"></textarea>
-      <div class="row" style="margin-top:10px"><button class="btn" id="add">Add students</button><span id="prev" class="mutedtxt"></span></div></div>` : ""}
+      <div id="prev" class="mutedtxt" style="margin-top:8px"></div><div class="row" style="margin-top:10px"><button class="btn" id="add">Add students</button></div></div>` : ""}
     <div class="card scroll"><div class="row" style="justify-content:space-between;margin-bottom:8px">
         <h2 style="margin:0">Students (${st.filter(s => s.active).length} active)</h2>
         <div class="row">${classPicker()}<button class="btn alt" id="print" ${st.length ? "" : "disabled"}>🖨 Print PIN slips</button></div></div>
@@ -323,7 +330,8 @@ function renderRoster() {
   const ta = document.getElementById("names");
   if (ta) {
     ta.oninput = () => { const n = parseNames(ta.value); const wp = n.filter(x => x.pin).length;
-      document.getElementById("prev").textContent = n.length ? `${n.length} student(s) found${wp ? `, ${wp} with a PIN` : ""}. First one: ${n[0].first} ${n[0].last}${n[0].pin ? " · PIN " + n[0].pin : ""}` : ""; };
+      document.getElementById("prev").innerHTML = n.length ? `<b>${n.length} student(s) found, ${wp} with a PIN.</b> Check the list before you add:
+        <div style="columns:3 200px;margin-top:6px;font-size:.88rem">${n.map(x => `<div>${esc(x.last)}, ${esc(x.first)} · <span class="pin" style="font-size:.88rem">${x.pin || "random"}</span></div>`).join("")}</div>` : ""; };
     document.getElementById("add").onclick = async () => {
       const n = parseNames(ta.value); if (!n.length) return;
       const r = await call("t_add_students", { p_class: +document.getElementById("addto").value, p_names: n });
