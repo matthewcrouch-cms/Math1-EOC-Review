@@ -562,18 +562,35 @@ end $$;
 
 create or replace function t_add_students(p_token text, p_class int, p_names jsonb) returns jsonb
 language plpgsql volatile security definer set search_path = public as $$
-declare t teachers := _teacher(p_token); n jsonb; added int := 0;
+-- Each item: {"first","last","pin"?}. A given 4-digit pin is used (and updates an existing student's PIN);
+-- otherwise new students get a random PIN.
+declare t teachers := _teacher(p_token); n jsonb; added int := 0; updated int := 0; sid int; v_pin text;
 begin
   if not exists (select 1 from classes where id = p_class and teacher_id = t.id) then perform _err('Pick one of your classes first.'); end if;
   for n in select * from jsonb_array_elements(p_names) loop
-    if not exists (select 1 from students where teacher_id = t.id and class_id = p_class and not is_test
-                    and lower(first) = lower(n->>'first') and lower(last) = lower(n->>'last')) then
+    v_pin := nullif(trim(coalesce(n->>'pin', '')), '');
+    if v_pin is not null and v_pin !~ '^\d{4}$' then perform _err(format('PIN for %s %s must be 4 digits.', n->>'first', n->>'last')); end if;
+    select id into sid from students where teacher_id = t.id and class_id = p_class and not is_test
+       and lower(first) = lower(n->>'first') and lower(last) = lower(n->>'last');
+    if sid is null then
       insert into students (teacher_id, class_id, first, last, pin)
-        values (t.id, p_class, n->>'first', n->>'last', lpad((floor(random() * 10000))::int::text, 4, '0'));
+        values (t.id, p_class, n->>'first', n->>'last', coalesce(v_pin, lpad((floor(random() * 10000))::int::text, 4, '0')));
       added := added + 1;
+    elsif v_pin is not null then
+      update students set pin = v_pin, fails = 0, locked_until = null where id = sid and students.pin is distinct from v_pin;
+      if found then updated := updated + 1; end if;
     end if;
   end loop;
-  return jsonb_build_object('added', added);
+  return jsonb_build_object('added', added, 'updated', updated);
+end $$;
+
+create or replace function t_set_pin(p_token text, p_student int, p_pin text) returns void
+language plpgsql volatile security definer set search_path = public as $$
+declare t teachers := _teacher(p_token);
+begin
+  if not exists (select 1 from students where id = p_student and teacher_id = t.id) then perform _err('Student not found.'); end if;
+  if coalesce(p_pin, '') !~ '^\d{4}$' then perform _err('A PIN must be exactly 4 digits.'); end if;
+  update students set pin = p_pin, fails = 0, locked_until = null where id = p_student;
 end $$;
 
 create or replace function t_student(p_token text, p_student int, p_action text, p_class int default null) returns void
@@ -744,7 +761,7 @@ do $$ declare f text; begin
   foreach f in array array['hw_teachers()','hw_classes(int)','hw_students(int)','hw_login(int,text)','hw_logout(text)',
     'hw_my_assignments(text)','hw_assignment(text,text)','hw_submit(text,text,jsonb)','hw_hint(text,text)',
     't_login(text,text)','t_logout(text)','t_change_password(text,text,text)','t_data(text)','t_class(text,text,int,text)',
-    't_add_students(text,int,jsonb)','t_student(text,int,text,int)','t_set_schedule(text,jsonb)',
+    't_add_students(text,int,jsonb)','t_set_pin(text,int,text)','t_student(text,int,text,int)','t_set_schedule(text,jsonb)',
     't_extension(text,int,text,timestamptz,timestamptz)','t_reset_work(text,int,text)','t_preview(text,boolean)','t_question_bank(text)',
     'a_toggle_problem(text,text,boolean)','a_teachers(text)','a_teacher(text,text,int,text,text,text)','a_set_scoring(text,jsonb)',
     'a_defaults(text,jsonb)','a_no_school(text,date,text,boolean)'] loop

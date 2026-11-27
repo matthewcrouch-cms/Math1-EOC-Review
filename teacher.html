@@ -271,10 +271,21 @@ function renderInsights() {
 
 // ---------------- CLASSES & PINS ----------------
 function parseNames(text) {
+  // Accepts "Last, First", "First Last", or pasted spreadsheet/table rows. An optional PIN can be anywhere after the name.
+  const pinOf = cells => { const p = cells.find(c => /^\d{4}$/.test(c)) || cells.find(c => /^\d{1,3}$/.test(c)); return p ? p.padStart(4, "0") : ""; };
   return text.split(/\r?\n/).map(l => l.trim()).filter(l => l && !/\bname\b/i.test(l)).map(l => {
-    if (l.includes("\t")) { const [last, first] = l.split("\t"); return { last: last.trim(), first: (first || "").trim() }; }
-    if (l.includes(",")) { const [last, ...rest] = l.split(","); return { last: last.trim(), first: rest.join(",").trim() }; }
-    const parts = l.split(/\s+/); return { first: parts.slice(0, -1).join(" "), last: parts.slice(-1)[0] };
+    let first = "", last = "", rest = [];
+    if (l.includes("\t")) {
+      const c = l.split("\t").map(x => x.trim());
+      if (c[0].includes(",")) { [last, first] = c[0].split(",").map(x => x.trim()); rest = c.slice(1); }
+      else { last = c[0]; first = c[1] || ""; rest = c.slice(2); }
+    } else if (l.includes(",")) {
+      const c = l.split(",").map(x => x.trim()); last = c[0]; first = c[1] || ""; rest = c.slice(2);
+    } else {
+      const w = l.split(/\s+/); if (/^\d{1,4}$/.test(w[w.length - 1])) rest = [w.pop()];
+      last = w.pop() || ""; first = w.join(" ");
+    }
+    return { first, last, pin: pinOf(rest) };
   }).filter(n => n.first && n.last);
 }
 function renderRoster() {
@@ -288,8 +299,8 @@ function renderRoster() {
       <p class="mutedtxt">Hidden classes disappear from the student login screen.</p></div>
     ${cls.some(c => c.active) ? `<div class="card"><h2>Add students</h2>
       <div class="row" style="margin-bottom:8px">Add to: ${classPicker("addto", false)}</div>
-      <p class="mutedtxt" style="margin-top:0">One student per line: <b>Last, First</b>, or paste two spreadsheet columns (Last Name, then First Name). Each new student gets a random PIN. Duplicates are skipped.</p>
-      <textarea id="names" placeholder="Ruiz, Maya&#10;Ortiz, Ben"></textarea>
+      <p class="mutedtxt" style="margin-top:0">One student per line: <b>Last, First</b>, or paste spreadsheet columns (Last Name, then First Name). To keep PINs students already know, add the PIN after the name, like <b>Ruiz, Maya, 0427</b>. You can also copy the whole roster table from the Unit 7 homework platform's <b>Roster &amp; PINs</b> tab and paste it here. Students without a PIN get a random one. Pasting a student who is already here updates their PIN.</p>
+      <textarea id="names" placeholder="Ruiz, Maya, 0427&#10;Ortiz, Ben, 5813"></textarea>
       <div class="row" style="margin-top:10px"><button class="btn" id="add">Add students</button><span id="prev" class="mutedtxt"></span></div></div>` : ""}
     <div class="card scroll"><div class="row" style="justify-content:space-between;margin-bottom:8px">
         <h2 style="margin:0">Students (${st.filter(s => s.active).length} active)</h2>
@@ -297,7 +308,7 @@ function renderRoster() {
       <table class="t"><tr><th>Name</th><th>Class</th><th>PIN</th><th>Status</th><th></th></tr>
       ${st.map(s => `<tr style="${s.active ? "" : "opacity:.5"}"><td><b>${esc(s.last)}</b>, ${esc(s.first)}</td>
         <td><select data-move="${s.id}">${cls.map(c => `<option value="${c.id}" ${c.id === s.class_id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></td>
-        <td><span class="pin">${esc(s.pin)}</span></td><td>${s.active ? (s.locked ? `<span class="bad">Locked</span>` : "Active") : "Removed"}</td>
+        <td><span class="pin">${esc(s.pin)}</span> <button class="btn alt sm" data-setpin="${s.id}" title="Type a specific PIN">✎</button></td><td>${s.active ? (s.locked ? `<span class="bad">Locked</span>` : "Active") : "Removed"}</td>
         <td class="row" style="justify-content:flex-end">
           <button class="btn alt sm" data-act="reset_pin" data-id="${s.id}">New PIN</button>
           ${s.locked ? `<button class="btn alt sm" data-act="unlock" data-id="${s.id}">Unlock</button>` : ""}
@@ -311,14 +322,21 @@ function renderRoster() {
     await call("t_class", { p_action: a.dataset.on === "true" ? "hide" : "show", p_class: +a.dataset.hide, p_name: null }); refresh(); });
   const ta = document.getElementById("names");
   if (ta) {
-    ta.oninput = () => { const n = parseNames(ta.value); document.getElementById("prev").textContent = n.length ? `${n.length} student(s) found, for example: ${n[0].first} ${n[0].last}` : ""; };
+    ta.oninput = () => { const n = parseNames(ta.value); const wp = n.filter(x => x.pin).length;
+      document.getElementById("prev").textContent = n.length ? `${n.length} student(s) found${wp ? `, ${wp} with a PIN` : ""}. First one: ${n[0].first} ${n[0].last}${n[0].pin ? " · PIN " + n[0].pin : ""}` : ""; };
     document.getElementById("add").onclick = async () => {
       const n = parseNames(ta.value); if (!n.length) return;
-      const r = await call("t_add_students", { p_class: +document.getElementById("addto").value, p_names: n }); toast(`Added ${r.added} student(s).`, true); refresh();
+      const r = await call("t_add_students", { p_class: +document.getElementById("addto").value, p_names: n });
+      toast(`Added ${r.added} student(s)${r.updated ? `, updated ${r.updated} PIN(s)` : ""}.`, true); refresh();
     };
   }
   app.querySelectorAll("[data-move]").forEach(sel => sel.onchange = async () => { await call("t_student", { p_student: +sel.dataset.move, p_action: "move", p_class: +sel.value }, "Moved."); refresh(); });
   app.querySelectorAll("[data-act]").forEach(b => b.onclick = async () => { await call("t_student", { p_student: +b.dataset.id, p_action: b.dataset.act, p_class: null }); refresh(); });
+  app.querySelectorAll("[data-setpin]").forEach(b => b.onclick = async () => {
+    const s = D().students.find(x => x.id === +b.dataset.setpin), p = prompt(`New 4-digit PIN for ${s.first} ${s.last}:`, s.pin);
+    if (p == null) return;
+    await call("t_set_pin", { p_student: s.id, p_pin: p.trim() }, "PIN updated."); refresh();
+  });
   wireClassPicker(renderRoster);
   document.getElementById("print").onclick = () => {
     const url = location.href.replace(/teacher\.html.*$/, "");
